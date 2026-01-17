@@ -5,14 +5,50 @@ const {
 	Menu,
 	screen,
 	globalShortcut,
-	desktopCapturer,
-	session
+	session,
+	systemPreferences,
+	ipcMain
 } = require("electron")
 const path = require("path")
+
+// System audio loopback for capturing audio from other apps
+let audioLoopbackAvailable = false
+try {
+	const { initMain } = require("electron-audio-loopback")
+	initMain()
+	audioLoopbackAvailable = true
+	console.log("[AUDIO] System audio loopback initialized")
+} catch (err) {
+	console.warn("[AUDIO] electron-audio-loopback not available:", err.message)
+	console.warn("[AUDIO] Falling back to microphone-only mode")
+}
 
 let mainWindow = null
 let tray = null
 let isClickThrough = false
+
+// Register IPC handlers at module load (remove first to handle hot reload)
+console.log("[IPC] Registering IPC handlers...")
+try {
+	ipcMain.removeHandler('is-loopback-available')
+	ipcMain.removeHandler('enable-loopback-audio')
+	ipcMain.removeHandler('disable-loopback-audio')
+	console.log("[IPC] Removed existing handlers (hot reload detected)")
+} catch (e) {
+	console.log("[IPC] No existing handlers to remove (first load)")
+}
+
+ipcMain.handle('is-loopback-available', () => {
+	console.log("[IPC] is-loopback-available called, returning:", audioLoopbackAvailable)
+	return audioLoopbackAvailable
+})
+ipcMain.handle('enable-loopback-audio', () => {
+	console.log('[AUDIO] Loopback audio enabled for getDisplayMedia')
+})
+ipcMain.handle('disable-loopback-audio', () => {
+	console.log('[AUDIO] Loopback audio disabled')
+})
+console.log("[IPC] IPC handlers registered successfully")
 
 function createWindow() {
 	const { width, height } = screen.getPrimaryDisplay().workAreaSize
@@ -35,6 +71,7 @@ function createWindow() {
 		webPreferences: {
 			nodeIntegration: false,
 			contextIsolation: true,
+			preload: path.join(__dirname, 'preload.js'),
 			// Enable desktop audio capture on Windows/Linux
 			enableWebRTC: true,
 			allowDisplayingInsecureContent: true
@@ -91,8 +128,8 @@ function createTray() {
 	tray.setContextMenu(contextMenu)
 }
 
-app.whenReady().then(() => {
-	// Enable desktop audio capture for Windows/Linux
+app.whenReady().then(async () => {
+	// Handle media permissions
 	session.defaultSession.setPermissionRequestHandler(
 		(webContents, permission, callback) => {
 			if (permission === "media") {
@@ -102,6 +139,24 @@ app.whenReady().then(() => {
 			}
 		}
 	)
+
+	// macOS: Check/request screen recording permission (required for system audio loopback)
+	if (process.platform === "darwin") {
+		const screenAccess = systemPreferences.getMediaAccessStatus("screen")
+		console.log("[AUDIO] Screen recording permission status:", screenAccess)
+
+		if (screenAccess !== "granted") {
+			console.log("[AUDIO] Screen recording permission not granted - requesting...")
+			// Request microphone permission (this CAN be requested programmatically)
+			const micGranted = await systemPreferences.askForMediaAccess("microphone")
+			console.log("[AUDIO] Microphone permission:", micGranted ? "granted" : "denied")
+
+			// For screen recording, we can only check status - user must manually enable in System Preferences
+			// The permission dialog will appear when the app first attempts screen capture
+			console.log("[AUDIO] Screen recording permission must be granted manually:")
+			console.log("[AUDIO] System Preferences > Privacy & Security > Screen & System Audio Recording")
+		}
+	}
 
 	createWindow()
 	createTray()

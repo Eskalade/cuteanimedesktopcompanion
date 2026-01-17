@@ -2,14 +2,29 @@
 
 import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
-import { useAudioCapture, type AudioData, type Mood } from "@/hooks/use-audio-capture"
-import { Mic, Monitor, GripVertical, Bug, ImageIcon } from "lucide-react"
+import { useAudioCapture, type AudioData, type Mood, type AudioMode } from "@/hooks/use-audio-capture"
+import { GripVertical, Bug, ImageIcon, Mic, Monitor } from "lucide-react"
 import { getDebugState, isDebugEnabled } from "@/lib/audio-debug"
 
 const SPRITE_FRAMES: Record<Mood, string[]> = {
-  chill: ["/sprites/chill-1.png", "/sprites/chill-2.png"],
-  happy: ["/sprites/happy-1.png", "/sprites/happy-2.png", "/sprites/happy-3.png"],
-  sad: ["/sprites/sad-1.png", "/sprites/sad-2.png"],
+  chill: [
+    "/sprites/chill-1.png",
+    "/sprites/chill-2.png",
+    "/sprites/chill-3.png",
+    "/sprites/chill-4.png",
+  ],
+  happy: [
+    "/sprites/happy-1.png",
+    "/sprites/happy-2.png",
+    "/sprites/happy-3.png",
+    "/sprites/happy-4.png",
+  ],
+  sad: [
+    "/sprites/sad-1.png",
+    "/sprites/sad-2.png",
+    "/sprites/sad-3.png",
+    "/sprites/sad-4.png",
+  ],
   energetic: [
     "/sprites/energetic-1.png",
     "/sprites/energetic-2.png",
@@ -34,9 +49,6 @@ const FRAME_SPEEDS: Record<Mood, number> = {
 }
 
 export default function DesktopPage() {
-  const [inputMode, setInputMode] = useState<"system" | "microphone">(
-    "microphone"
-  )
   const [showControls, setShowControls] = useState(false)
   const [useCustomSprites, setUseCustomSprites] = useState(true)
   const [showDebug, setShowDebug] = useState(false)
@@ -44,6 +56,7 @@ export default function DesktopPage() {
   const [spritesLoaded, setSpritesLoaded] = useState(false)
   const [hasFrameSprites, setHasFrameSprites] = useState(false)
   const [spriteError, setSpriteError] = useState<string | null>(null)
+  const [inputMode, setInputMode] = useState<AudioMode>("microphone")
   const { isListening, audioData, error, startCapture, stopCapture } = useAudioCapture(inputMode)
 
   // Toggle debug with keyboard shortcut (Ctrl+Shift+D)
@@ -117,7 +130,7 @@ export default function DesktopPage() {
       >
         <button
           onClick={() => setInputMode(inputMode === "microphone" ? "system" : "microphone")}
-          className="p-2 sm:p-2.5 md:p-3 rounded-full bg-black/50 hover:bg-black/70 text-white/70 hover:text-white transition-all"
+          className={`p-2 sm:p-2.5 md:p-3 rounded-full transition-all ${inputMode === "system" ? "bg-purple-500/70 text-white" : "bg-black/50 hover:bg-black/70 text-white/70 hover:text-white"}`}
           title={inputMode === "microphone" ? "Switch to System Audio" : "Switch to Microphone"}
         >
           {inputMode === "microphone" ? <Mic className="w-6 h-6 sm:w-8 sm:h-8" /> : <Monitor className="w-6 h-6 sm:w-8 sm:h-8" />}

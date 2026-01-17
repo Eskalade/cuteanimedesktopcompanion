@@ -29,6 +29,10 @@ const isVerboseDebug =
 let debugFrameCount = 0
 const DEBUG_LOG_INTERVAL = 30
 
+// Unified audio settings
+const AUDIO_MULTIPLIER = 3
+const SILENCE_THRESHOLD = 0.03
+
 export type AudioMode = "system" | "microphone"
 export type Mood = "chill" | "energetic" | "sad" | "happy"
 export type BpmStatus =
@@ -191,29 +195,25 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 			totalSum += dataArray[i]
 		}
 
-		// Use same or slightly lower multiplier for microphone mode to avoid maxing out
-		// Microphone input can vary greatly depending on Windows volume settings
-		const multiplier = mode === "microphone" ? 2 : 4
-
+		// Unified gain multiplier for consistent levels
 		// RAW values for beat detection (can exceed 1.0 to detect transients)
-		const rawBassLevel = (bassSum / (bassEndBin * 255)) * multiplier
+		const rawBassLevel = (bassSum / (bassEndBin * 255)) * AUDIO_MULTIPLIER
 		// CAPPED values for display (0-1 range)
 		const bassLevel = Math.min(1, rawBassLevel)
 		const midLevel = Math.min(
 			1,
-			(midSum / ((midEndBin - bassEndBin) * 255)) * multiplier
+			(midSum / ((midEndBin - bassEndBin) * 255)) * AUDIO_MULTIPLIER
 		)
 		const trebleLevel = Math.min(
 			1,
-			(trebleSum / ((bufferLength - midEndBin) * 255)) * multiplier
+			(trebleSum / ((bufferLength - midEndBin) * 255)) * AUDIO_MULTIPLIER
 		)
-		const energy = Math.min(1, (totalSum / (bufferLength * 255)) * multiplier)
+		const energy = Math.min(1, (totalSum / (bufferLength * 255)) * AUDIO_MULTIPLIER)
 
 		// Verbose debug logging for levels
 		if (isVerboseDebug && debugFrameCount % DEBUG_LOG_INTERVAL === 0) {
 			console.log("[AUDIO-DBG] Levels:", {
-				mode,
-				multiplier,
+				multiplier: AUDIO_MULTIPLIER,
 				energy: energy.toFixed(4),
 				bass: bassLevel.toFixed(4),
 				rawBass: rawBassLevel.toFixed(4),
@@ -225,8 +225,7 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 			})
 		}
 
-		// Lower silence threshold for microphone mode (0.02) vs system audio (0.05)
-		const SILENCE_THRESHOLD = mode === "microphone" ? 0.02 : 0.05
+		// Unified silence threshold
 		const isSilent = energy < SILENCE_THRESHOLD
 		if (isSilent) {
 			silenceCountRef.current++
@@ -442,55 +441,78 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 	}, [])
 
 	const startCapture = useCallback(
-		async (overrideMode?: AudioMode) => {
+		async () => {
 			setError(null)
 			cleanup()
 			resetPredictionHistory()
 
-			const activeMode = overrideMode ?? mode
-
 			try {
 				let stream: MediaStream
 
-				if (activeMode === "system") {
-					// Use getDisplayMedia for system audio capture
-					// On Windows, this will prompt user to select which window/screen to share audio from
-					try {
+				if (mode === "system") {
+					// Check if running in Electron with loopback available
+					const electronAPI = (window as any).electronAPI
+
+					if (electronAPI?.enableLoopbackAudio) {
+						// Enable loopback before getDisplayMedia
+						if (isVerboseDebug) {
+							console.log("[AUDIO-DBG] Using Electron audio loopback")
+						}
+						await electronAPI.enableLoopbackAudio()
+
+						// MUST request video: true for the library to intercept
 						stream = await navigator.mediaDevices.getDisplayMedia({
-							audio: {
-								echoCancellation: false,
-								noiseSuppression: false,
-								autoGainControl: false,
-								suppressLocalAudioPlayback: false
-							} as any,
-							video: {
-								width: 1,
-								height: 1,
-								frameRate: 1
-							} as any
+							video: true,
+							audio: true
 						})
 
-						const audioTracks = stream.getAudioTracks()
-						if (audioTracks.length === 0) {
-							stream.getTracks().forEach(t => t.stop())
-							throw new Error(
-								"No audio track selected. Please select a window/screen and check 'Share audio'"
-							)
-						}
+						// Remove video tracks immediately
+						stream.getVideoTracks().forEach(t => {
+							t.stop()
+							stream.removeTrack(t)
+						})
 
-						// Stop video track, we only need audio
-						stream.getVideoTracks().forEach(track => track.stop())
-					} catch (err) {
-						// If display media fails, fall back to microphone and inform user
-						console.warn(
-							"[AUDIO-DBG] Display media failed, falling back to microphone:",
-							err
+						// Disable loopback after getting stream
+						await electronAPI.disableLoopbackAudio()
+					} else {
+						// Fallback for non-Electron (web browser) or loopback device
+						const devices = await navigator.mediaDevices.enumerateDevices()
+						const loopbackDevice = devices.find(
+							d =>
+								d.kind === "audioinput" &&
+								(d.label.toLowerCase().includes("loopback") ||
+									d.label.toLowerCase().includes("system audio"))
 						)
-						throw new Error(
-							"System audio capture failed. On Windows, enable 'Stereo Mix' in Sound settings or use Microphone mode."
-						)
+
+						if (loopbackDevice) {
+							if (isVerboseDebug) {
+								console.log(
+									"[AUDIO-DBG] Found loopback device:",
+									loopbackDevice.label
+								)
+							}
+							stream = await navigator.mediaDevices.getUserMedia({
+								audio: { deviceId: { exact: loopbackDevice.deviceId } }
+							})
+						} else {
+							if (isVerboseDebug) {
+								console.log(
+									"[AUDIO-DBG] No loopback device found, using getDisplayMedia fallback"
+								)
+							}
+							stream = await navigator.mediaDevices.getDisplayMedia({
+								audio: {
+									echoCancellation: false,
+									noiseSuppression: false
+								},
+								video: { width: 1, height: 1, frameRate: 1 }
+							})
+							// Stop video track, keep only audio
+							stream.getVideoTracks().forEach(t => t.stop())
+						}
 					}
 				} else {
+					// Microphone mode (default)
 					stream = await navigator.mediaDevices.getUserMedia({
 						audio: {
 							echoCancellation: false,
@@ -603,13 +625,15 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 				// Track start time for warmup period
 				startTimeRef.current = Date.now()
 				if (isVerboseDebug) {
-					console.log("[AUDIO-DBG] Audio capture started, mode:", activeMode)
+					console.log(
+						`[AUDIO-DBG] Audio capture started (${mode} mode)`
+					)
 				}
 
 				setIsListening(true)
 				analyze()
 			} catch (err) {
-				console.error("[v0] Capture error:", err)
+				console.error("[AUDIO] Capture error:", err)
 				setError(err instanceof Error ? err.message : "Failed to capture audio")
 				cleanup()
 			}

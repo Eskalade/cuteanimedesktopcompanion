@@ -2,11 +2,29 @@
 
 A cute desktop AI companion that reacts to your music in real-time. Vibe Buddy analyzes audio from your microphone or system audio to detect BPM, genre, mood, and energy levels, then displays an animated character that dances and emotes along with your tunes.
 
+## Audio Input Modes
+
+Vibe Buddy supports two audio input modes, selectable via the toggle button in the top-right corner:
+
+### Microphone Mode (Default)
+- **Icon**: 🎤 Mic
+- Works out of the box with no special permissions
+- Captures ambient sound through your microphone
+- Great for reacting to music playing through speakers
+- Works on all platforms
+
+### System Audio Mode
+- **Icon**: 🖥️ Monitor
+- Captures audio directly from applications (Spotify, YouTube, etc.)
+- Requires Screen Recording permission on macOS
+- No ambient noise interference
+- Best for headphone users or quiet environments
+
 ## Features
 
-- **Real-time Audio Analysis** - Captures and analyzes audio from microphone or system audio
+- **Dual Audio Modes** - Switch between microphone and system audio capture
 - **BPM Detection** - Detects beats per minute (50-200 BPM range) using beat detection algorithms
-- **Genre Classification** - Identifies music genre (electronic, hip-hop, rock, pop, jazz, classical, ambient, metal, r&b, reggae)
+- **Genre Classification** - Identifies music genre (electronic, EDM, dubstep, trap, lo-fi, hip-hop, rock, pop, jazz, classical, ambient, metal, r&b, reggae, indie)
 - **Mood Detection** - Classifies audio mood as chill, energetic, happy, or sad
 - **Frequency Spectrum Analysis** - Monitors bass (0-250Hz), mid (250-2000Hz), and treble levels
 - **Animated Character** - Bouncy sprite with physics-based animations that react to the beat
@@ -26,6 +44,42 @@ cd cuteanimedesktopcompanion
 # Install dependencies
 npm install
 ```
+
+## System Audio Setup
+
+Vibe Buddy captures system audio (from Spotify, YouTube, etc.) using `electron-audio-loopback`. Setup varies by platform:
+
+### macOS
+
+On first launch, macOS will prompt for **Screen & System Audio Recording** permission:
+
+1. Click "Open System Preferences" when prompted
+2. Go to **Privacy & Security > Screen & System Audio Recording**
+3. Enable the toggle for Vibe Buddy
+4. **Restart the app** (required for permissions to take effect)
+
+> **Note**: macOS 14.2+ uses Core Audio Taps API for zero-latency capture. Older versions use Chromium flags as fallback.
+
+### Windows
+
+System audio capture should work out-of-the-box on Windows 10/11 without any additional setup.
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| No audio detected | Check that music is playing and volume is not muted |
+| Permission denied (macOS) | Grant Screen Recording permission and restart the app |
+| BPM not detecting | Play music with a strong beat; BPM detection needs 2-3 seconds to stabilize |
+| Wrong mood detected | The mood may take 1-2 seconds to stabilize; this is intentional to prevent flickering |
+
+### Debug Mode
+
+Enable debug mode to see real-time analysis metrics:
+
+- **URL**: Add `?debug=1` to the URL
+- **Keyboard**: Press `Ctrl+Shift+D` to toggle debug panel
+- **Console**: Run `localStorage.setItem('VIBE_DEBUG', 'true')` and refresh
 
 ## Usage
 
@@ -54,6 +108,7 @@ Then open [http://localhost:3000](http://localhost:3000) in your browser.
 | Control | Action |
 |---------|--------|
 | `Ctrl/Cmd + Shift + V` | Toggle companion visibility |
+| Mic/Monitor button | Toggle between microphone and system audio mode |
 | Tray Icon > Toggle Click-Through | Make window click-through |
 | Tray Icon > Reset Position | Move back to default position |
 | Drag window | Reposition the companion |
@@ -104,9 +159,9 @@ Vibe Buddy analyzes the following metrics in real-time:
 ## Tech Stack
 
 - **Framework**: [Next.js](https://nextjs.org/) 16
-- **Desktop**: [Electron](https://www.electronjs.org/) 33
+- **Desktop**: [Electron](https://www.electronjs.org/) 40
 - **UI**: [Tailwind CSS](https://tailwindcss.com/) 4, [Radix UI](https://www.radix-ui.com/)
-- **Audio**: Web Audio API, [realtime-bpm-analyzer](https://www.npmjs.com/package/realtime-bpm-analyzer)
+- **Audio**: Web Audio API, [realtime-bpm-analyzer](https://www.npmjs.com/package/realtime-bpm-analyzer), [electron-audio-loopback](https://www.npmjs.com/package/electron-audio-loopback)
 - **Language**: TypeScript
 
 ## Customization
@@ -115,10 +170,17 @@ Vibe Buddy analyzes the following metrics in real-time:
 
 Replace the sprite images in `public/sprites/` with your own:
 
+**Single sprites** (fallback):
 - `chill.png` - Displayed when mood is "chill"
 - `energetic.png` - Displayed when mood is "energetic"
 - `happy.png` - Displayed when mood is "happy"
 - `sad.png` - Displayed when mood is "sad"
+
+**Animated sprites** (4 frames per mood):
+- `chill-1.png` through `chill-4.png`
+- `happy-1.png` through `happy-4.png`
+- `sad-1.png` through `sad-4.png`
+- `energetic-1.png` through `energetic-4.png`
 
 Recommended size: 200x200px with transparent background.
 
