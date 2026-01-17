@@ -10,7 +10,7 @@ import { CharacterGenerator } from "./character-generator"
 import { Button } from "@/components/ui/button"
 import { MonitorSpeaker, Square, Mic, ExternalLink, Sparkles } from "lucide-react"
 
-export type Mood = "chill" | "energetic" | "sad" | "happy"
+export type Mood = "chill" | "energetic" | "sad" | "happy" | "sleep"
 
 export interface AudioData {
   bpm: number

@@ -8,7 +8,7 @@ import {
 } from "@/lib/audio-debug"
 
 export interface AudioMLResult {
-	mood: "chill" | "energetic" | "sad" | "happy"
+	mood: "chill" | "energetic" | "sad" | "happy" | "sleep"
 	moodConfidence: number
 	energy: number
 	valence: number
@@ -103,13 +103,13 @@ export function analyzeAudioFeatures(
 	const moodScores = {
 		happy: energy * 0.4 + valence * 0.6, // Favor valence more to catch bright songs
 		energetic: energy * 0.7 + (1 - valence) * 0.3,
-		chill: (1 - energy) * 0.6 + valence * 0.4, // Require more relaxation
+		chill: (1 - energy) * 0.3 + valence * 0.4, // Lower weight on low-energy to reduce false chill detection
 		sad: (1 - energy) * 0.5 + (1 - valence) * 0.5
 	}
 	lastMoodScores = moodScores
 
 	// Pick mood with highest score
-	let mood: "chill" | "energetic" | "sad" | "happy" = "chill"
+	let mood: "chill" | "energetic" | "sad" | "happy" | "sleep" = "chill"
 	let maxMoodScore = 0
 	for (const [m, score] of Object.entries(moodScores)) {
 		if (score > maxMoodScore) {
@@ -184,7 +184,7 @@ export function getSmoothedPrediction(result: AudioMLResult): AudioMLResult {
 	// 25% threshold with weighted counting for responsive mood changes
 	const moodThreshold = totalWeight * 0.25
 
-	let finalMood: AudioMLResult["mood"] = "chill"
+	let finalMood: AudioMLResult["mood"] = "chill" as AudioMLResult["mood"]
 	if (topMoodCount >= moodThreshold) {
 		finalMood = topMood[0] as AudioMLResult["mood"]
 	}

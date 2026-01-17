@@ -2,6 +2,119 @@
 
 test
 
+## 2026-01-18 - Transparent Mode, Sleep Mode & BPM Decay
+
+### New Features
+
+#### 1. Transparent Mode (Ctrl+Shift+T)
+**File:** `app/desktop/page.tsx`
+
+**Description:** A new mode that hides all UI elements, leaving only the animated chibi visible. Perfect for desktop overlay use.
+
+**Implementation:**
+- Added `transparentMode` state to DesktopPage component
+- Added keyboard shortcut handler for `Ctrl+Shift+T`
+- UI elements hidden in transparent mode:
+  - Drag handle (GripVertical icon)
+  - Mini controls (audio mode, mood lock, sprite toggle, debug toggle)
+  - Sprite error messages
+  - Debug panel
+  - Start/Stop button
+  - Error messages
+- Glow effects hidden in transparent mode (both custom sprites and blob fallback)
+- Drop shadows removed from sprites in transparent mode
+- Passed `transparentMode` prop to DesktopBuddy component
+
+**Usage:** Press `Ctrl+Shift+T` to toggle transparent mode on/off.
+
+#### 2. Sleep Mode (5s Inactivity)
+**Files:** `hooks/use-audio-capture.ts`, `app/desktop/page.tsx`, `lib/audio-ml.ts`, `components/music-companion.tsx`
+
+**Description:** When "Start Vibing" is active but no audio is detected for 5 seconds, the chibi enters sleep mode with a slow breathing animation.
+
+**Implementation:**
+- Added `"sleep"` to the `Mood` type union in all files:
+  - `hooks/use-audio-capture.ts:41`
+  - `lib/audio-ml.ts:11`
+  - `components/music-companion.tsx:13`
+- Added sleep sprites configuration:
+  - `SPRITE_FRAMES.sleep` - `/sprites/sleep-1.png` through `sleep-4.png`
+  - `MOOD_SPRITES.sleep` - `/sprites/sleep-1.png`
+  - `FRAME_SPEEDS.sleep` - 1800ms (very slow breathing)
+  - `glowColors.sleep` - `rgba(147, 112, 219, 0.3)` (soft muted purple)
+- Added "Sleep" option to mood lock dropdown
+- Updated animation parameters for sleep:
+  - Beat intensity: -2 (minimal reaction)
+  - Idle rotation: `Math.sin(timeRef.current / 2000) * 2` (very slow, minimal movement)
+- Automatic sleep trigger after 5s silence (`isInSilence` condition sets `mood: "sleep"`)
+- Added sleep gradient for blob fallback: `bg-linear-to-br from-purple-300 to-indigo-400`
+
+**Usage:**
+- Automatic: After 5 seconds of silence while listening, chibi enters sleep mode
+- Manual: Select "Sleep" from the mood lock dropdown to force sleep mode
+
+#### 3. BPM Decay During Inactivity
+**File:** `hooks/use-audio-capture.ts`
+
+**Description:** BPM now gradually decays toward 0 when no beats are detected, instead of staying frozen at the last value.
+
+**Implementation:**
+- Added decay constants:
+  - `BPM_DECAY_RATE = 0.97` - Multiplier per frame (~0.5 BPM/sec at 60fps)
+  - `BPM_DECAY_THRESHOLD = 5` - Below this value, BPM is set to 0
+- Modified `isInSilence` block to apply decay:
+  ```typescript
+  if (lastValidBpmRef.current > BPM_DECAY_THRESHOLD) {
+    lastValidBpmRef.current = Math.floor(lastValidBpmRef.current * BPM_DECAY_RATE)
+  } else {
+    lastValidBpmRef.current = 0
+  }
+  ```
+- Updated debug log from `"silence"` to `"silence-decay"` for tracking
+
+**Behavior:** When audio goes silent for 5+ seconds, BPM gradually decreases. Once below 5 BPM, it resets to 0.
+
+### Previous Changes (Mood Sync Fix)
+
+#### 4. Fixed Mood Sync Issue
+**File:** `app/desktop/page.tsx`
+
+**Problem:** The sprite/glow wasn't syncing with detected mood due to stale state references (`displayedMood`, `moodHistoryRef`, `lastMoodChangeRef`).
+
+**Fix:**
+- Removed stale state and refs from DesktopBuddy
+- Added `effectiveMood` computed from `moodLock` or `audioData.mood`
+- Replaced all `displayedMood` references with `effectiveMood`
+
+#### 5. Reduced Chill Sensitivity
+**File:** `lib/audio-ml.ts`
+
+**Change:** Reduced chill mood weight from 0.6 to 0.3 to reduce false chill detection.
+```typescript
+chill: (1 - energy) * 0.3 + valence * 0.4
+```
+
+---
+
+### Critical Files Modified
+
+| File | Changes |
+|------|---------|
+| `hooks/use-audio-capture.ts` | Mood type, BPM decay constants, sleep trigger in silence block |
+| `lib/audio-ml.ts` | AudioMLResult mood type, chill sensitivity reduction |
+| `app/desktop/page.tsx` | Transparent mode state/toggle, sleep sprites config, UI conditionals, animation params |
+| `components/music-companion.tsx` | Mood type |
+
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Shift+D` | Toggle debug panel |
+| `Ctrl+Shift+E` | Toggle expanded debug |
+| `Ctrl+Shift+T` | Toggle transparent mode |
+
+---
+
 ## 2026-01-17 - BPM Detection Critical Bug Fixes
 
 ### Bug Fixes

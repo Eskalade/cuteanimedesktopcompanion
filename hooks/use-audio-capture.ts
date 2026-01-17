@@ -33,8 +33,12 @@ const DEBUG_LOG_INTERVAL = 30
 const AUDIO_MULTIPLIER = 5
 const SILENCE_THRESHOLD = 0.03
 
+// BPM decay settings (for when no beats detected)
+const BPM_DECAY_RATE = 0.97 // Decay multiplier per frame (~0.5 BPM/sec at 60fps)
+const BPM_DECAY_THRESHOLD = 5 // Below this value, set BPM to 0
+
 export type AudioMode = "system" | "microphone"
-export type Mood = "chill" | "energetic" | "sad" | "happy"
+export type Mood = "chill" | "energetic" | "sad" | "happy" | "sleep"
 export type BpmStatus =
 	| "idle"
 	| "warming-up"
@@ -357,15 +361,21 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 		}
 
 		if (isInSilence) {
-			// Preserve BPM during silence instead of resetting to 0
-			logBpmReset("silence", lastValidBpmRef.current)
+			// Decay BPM during silence instead of preserving indefinitely
+			if (lastValidBpmRef.current > BPM_DECAY_THRESHOLD) {
+				lastValidBpmRef.current = Math.floor(lastValidBpmRef.current * BPM_DECAY_RATE)
+			} else {
+				lastValidBpmRef.current = 0
+			}
+
+			logBpmReset("silence-decay", lastValidBpmRef.current)
 			setAudioData({
 				...defaultAudioData,
-				bpm: lastValidBpmRef.current, // Keep last valid BPM
+				bpm: lastValidBpmRef.current,
 				bpmStatus: lastValidBpmRef.current > 0 ? "lost" : "detecting",
 				beatCount: 0,
 				isActive: false,
-				mood: "chill",
+				mood: "sleep", // Trigger sleep mode after 5s inactivity
 				beat: false,
 				maxFrequency
 			})

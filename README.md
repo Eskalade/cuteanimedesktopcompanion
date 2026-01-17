@@ -25,12 +25,14 @@ Vibe Buddy supports two audio input modes, selectable via the toggle button in t
 - **Dual Audio Modes** - Switch between microphone and system audio capture
 - **BPM Detection** - Detects beats per minute (50-200 BPM range) using beat detection algorithms
 - **Genre Classification** - Identifies music genre (electronic, EDM, dubstep, trap, lo-fi, hip-hop, rock, pop, jazz, classical, ambient, metal, r&b, reggae, indie)
-- **Mood Detection** - Classifies audio mood as chill, energetic, happy, or sad
+- **Mood Detection** - Classifies audio mood as chill, energetic, happy, sad, or sleep
 - **Frequency Spectrum Analysis** - Monitors bass (0-250Hz), mid (250-2000Hz), and treble levels
 - **Animated Character** - Bouncy sprite with physics-based animations that react to the beat
 - **Desktop Widget** - Floating, always-on-top transparent window (300x350px)
 - **Tray Menu** - System tray icon with quick controls
 - **Global Shortcut** - Toggle visibility with `Ctrl+Shift+V` (or `Cmd+Shift+V` on Mac)
+- **Transparent Mode** - Press `Ctrl+Shift+T` for a fully transparent background showing only the character
+- **Mood Lock** - Lock the character to a specific mood animation via the dropdown menu
 - **Custom Sprites** - Use your own character images
 - **Web App Mode** - Also works in the browser with a character generator
 
@@ -108,7 +110,11 @@ Then open [http://localhost:3000](http://localhost:3000) in your browser.
 | Control | Action |
 |---------|--------|
 | `Ctrl/Cmd + Shift + V` | Toggle companion visibility |
+| `Ctrl/Cmd + Shift + T` | Toggle transparent mode (character only, no glow/UI) |
+| `Ctrl/Cmd + Shift + D` | Toggle debug panel |
+| `Ctrl/Cmd + Shift + E` | Toggle expanded debug info |
 | Mic/Monitor button | Toggle between microphone and system audio mode |
+| Mood dropdown (top-left) | Lock mood to a specific animation |
 | Tray Icon > Toggle Click-Through | Make window click-through |
 | Tray Icon > Reset Position | Move back to default position |
 | Drag window | Reposition the companion |
@@ -125,7 +131,7 @@ Vibe Buddy analyzes the following metrics in real-time:
 | **Mid Level** | Mid frequency energy (250-2000Hz) | 0-100% |
 | **Treble Level** | High frequency energy (2000Hz+) | 0-100% |
 | **Genre** | Detected music genre | See list above |
-| **Mood** | Emotional classification | chill, energetic, happy, sad |
+| **Mood** | Emotional classification | chill, energetic, happy, sad, sleep |
 | **Danceability** | How danceable the track is | 0-100% |
 | **Valence** | Musical positivity | 0-100% |
 
@@ -153,7 +159,8 @@ Vibe Buddy analyzes the following metrics in real-time:
         ├── chill.png
         ├── energetic.png
         ├── happy.png
-        └── sad.png
+        ├── sad.png
+        └── sleep.png
 ```
 
 ## Tech Stack
@@ -175,12 +182,14 @@ Replace the sprite images in `public/sprites/` with your own:
 - `energetic.png` - Displayed when mood is "energetic"
 - `happy.png` - Displayed when mood is "happy"
 - `sad.png` - Displayed when mood is "sad"
+- `sleep.png` - Displayed when mood is "sleep"
 
 **Animated sprites** (4 frames per mood):
 - `chill-1.png` through `chill-4.png`
 - `happy-1.png` through `happy-4.png`
 - `sad-1.png` through `sad-4.png`
 - `energetic-1.png` through `energetic-4.png`
+- `sleep-1.png` through `sleep-4.png`
 
 Recommended size: 200x200px with transparent background.
 

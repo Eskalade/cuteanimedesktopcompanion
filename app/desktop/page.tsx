@@ -3,6 +3,8 @@
 import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useAudioCapture, type AudioData, type Mood, type AudioMode } from "@/hooks/use-audio-capture"
+
+type MoodLock = "auto" | Mood
 import { GripVertical, Bug, ImageIcon, Mic, Monitor } from "lucide-react"
 import { getDebugState, isDebugEnabled } from "@/lib/audio-debug"
 
@@ -31,6 +33,12 @@ const SPRITE_FRAMES: Record<Mood, string[]> = {
     "/sprites/energetic-3.png",
     "/sprites/energetic-4.png",
   ],
+  sleep: [
+    "/sprites/sleep-1.png",
+    "/sprites/sleep-2.png",
+    "/sprites/sleep-3.png",
+    "/sprites/sleep-4.png",
+  ],
 }
 
 // Fallback single sprites if frames not available
@@ -39,6 +47,7 @@ const MOOD_SPRITES: Record<Mood, string> = {
   happy: "/sprites/happy.png",
   sad: "/sprites/sad.png",
   energetic: "/sprites/energetic.png",
+  sleep: "/sprites/sleep-1.png",
 }
 
 const FRAME_SPEEDS: Record<Mood, number> = {
@@ -46,6 +55,7 @@ const FRAME_SPEEDS: Record<Mood, number> = {
   happy: 200, // Bouncy
   sad: 1200, // Very slow breathing
   energetic: 100, // Fast headbang
+  sleep: 1800, // Very slow breathing animation
 }
 
 export default function DesktopPage() {
@@ -57,6 +67,8 @@ export default function DesktopPage() {
   const [hasFrameSprites, setHasFrameSprites] = useState(false)
   const [spriteError, setSpriteError] = useState<string | null>(null)
   const [inputMode, setInputMode] = useState<AudioMode>("microphone")
+  const [moodLock, setMoodLock] = useState<MoodLock>("auto")
+  const [transparentMode, setTransparentMode] = useState(false)
   const { isListening, audioData, error, startCapture, stopCapture } = useAudioCapture(inputMode)
 
   // Toggle debug with keyboard shortcut (Ctrl+Shift+D)
@@ -70,12 +82,25 @@ export default function DesktopPage() {
       setDebugExpanded((prev) => !prev)
       e.preventDefault()
     }
+    // Toggle transparent mode with Ctrl+Shift+T
+    if (e.ctrlKey && e.shiftKey && e.key === "T") {
+      setTransparentMode((prev) => !prev)
+      e.preventDefault()
+    }
   }, [])
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [handleKeyDown])
+
+  // Apply transparent background class for Electron window transparency
+  useEffect(() => {
+    document.documentElement.classList.add('electron-transparent')
+    return () => {
+      document.documentElement.classList.remove('electron-transparent')
+    }
+  }, [])
 
   useEffect(() => {
     const checkSprites = async () => {
@@ -113,50 +138,76 @@ export default function DesktopPage() {
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
     >
-      {/* Drag handle */}
-      <div
-        className="absolute top-2 left-0 right-0 h-6 sm:h-8 flex items-center justify-center cursor-move"
-        style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-      >
-        <GripVertical
-          className={`w-6 h-6 sm:w-8 sm:h-8 text-white/50`}
-        />
-      </div>
+      {/* Drag handle - hidden in transparent mode */}
+      {!transparentMode && (
+        <div
+          className="absolute top-2 left-0 right-0 h-6 sm:h-8 flex items-center justify-center cursor-move"
+          style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+        >
+          <GripVertical
+            className={`w-6 h-6 sm:w-8 sm:h-8 text-white/50`}
+          />
+        </div>
+      )}
 
-      {/* Mini controls */}
-      <div
-        className={`absolute top-2 right-2 flex gap-1 sm:gap-2 transition-opacity ${showControls ? "opacity-100" : "opacity-0"}`}
-        style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-      >
-        <button
-          onClick={() => setInputMode(inputMode === "microphone" ? "system" : "microphone")}
-          className={`p-2 sm:p-2.5 md:p-3 rounded-full transition-all ${inputMode === "system" ? "bg-purple-500/70 text-white" : "bg-black/50 hover:bg-black/70 text-white/70 hover:text-white"}`}
-          title={inputMode === "microphone" ? "Switch to System Audio" : "Switch to Microphone"}
+      {/* Mood lock dropdown - left side, hidden in transparent mode */}
+      {!transparentMode && (
+        <div
+          className={`absolute top-2 left-2 transition-opacity ${showControls ? "opacity-100" : "opacity-0"}`}
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
         >
-          {inputMode === "microphone" ? <Mic className="w-6 h-6 sm:w-8 sm:h-8" /> : <Monitor className="w-6 h-6 sm:w-8 sm:h-8" />}
-        </button>
-        <button
-          onClick={() => spritesLoaded && setUseCustomSprites(!useCustomSprites)}
-          className={`p-2 sm:p-2.5 md:p-3 rounded-full transition-all ${spritesLoaded
-            ? useCustomSprites
-              ? "bg-green-500/70 text-white"
-              : "bg-black/50 hover:bg-black/70 text-white/70 hover:text-white"
-            : "bg-red-500/50 text-white/50 cursor-not-allowed"
-            }`}
-          title={spritesLoaded ? "Toggle custom sprites" : "Add sprites to /public/sprites/"}
-        >
-          <ImageIcon className="w-6 h-6 sm:w-8 sm:h-8" />
-        </button>
-        <button
-          onClick={() => setShowDebug(!showDebug)}
-          className={`p-2 sm:p-2.5 md:p-3 rounded-full transition-all ${showDebug ? "bg-yellow-500/70 text-black" : "bg-black/50 hover:bg-black/70 text-white/70 hover:text-white"}`}
-          title="Toggle debug info"
-        >
-          <Bug className="w-6 h-6 sm:w-8 sm:h-8" />
-        </button>
-      </div>
+          <select
+            value={moodLock}
+            onChange={(e) => setMoodLock(e.target.value as MoodLock)}
+            className="p-2 rounded-full bg-black/50 text-white/70 text-sm border-none outline-none cursor-pointer"
+            title="Lock mood animation"
+          >
+            <option value="auto">Auto</option>
+            <option value="energetic">Energetic</option>
+            <option value="happy">Happy</option>
+            <option value="chill">Chill</option>
+            <option value="sad">Sad</option>
+            <option value="sleep">Sleep</option>
+          </select>
+        </div>
+      )}
 
-      {spriteError && showControls && (
+      {/* Mini controls - right side, hidden in transparent mode */}
+      {!transparentMode && (
+        <div
+          className={`absolute top-2 right-2 flex gap-1 sm:gap-2 transition-opacity ${showControls ? "opacity-100" : "opacity-0"}`}
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+        >
+          <button
+            onClick={() => setInputMode(inputMode === "microphone" ? "system" : "microphone")}
+            className={`p-2 sm:p-2.5 md:p-3 rounded-full transition-all ${inputMode === "system" ? "bg-purple-500/70 text-white" : "bg-black/50 hover:bg-black/70 text-white/70 hover:text-white"}`}
+            title={inputMode === "microphone" ? "Switch to System Audio" : "Switch to Microphone"}
+          >
+            {inputMode === "microphone" ? <Mic className="w-6 h-6 sm:w-8 sm:h-8" /> : <Monitor className="w-6 h-6 sm:w-8 sm:h-8" />}
+          </button>
+          <button
+            onClick={() => spritesLoaded && setUseCustomSprites(!useCustomSprites)}
+            className={`p-2 sm:p-2.5 md:p-3 rounded-full transition-all ${spritesLoaded
+              ? useCustomSprites
+                ? "bg-green-500/70 text-white"
+                : "bg-black/50 hover:bg-black/70 text-white/70 hover:text-white"
+              : "bg-red-500/50 text-white/50 cursor-not-allowed"
+              }`}
+            title={spritesLoaded ? "Toggle custom sprites" : "Add sprites to /public/sprites/"}
+          >
+            <ImageIcon className="w-6 h-6 sm:w-8 sm:h-8" />
+          </button>
+          <button
+            onClick={() => setShowDebug(!showDebug)}
+            className={`p-2 sm:p-2.5 md:p-3 rounded-full transition-all ${showDebug ? "bg-yellow-500/70 text-black" : "bg-black/50 hover:bg-black/70 text-white/70 hover:text-white"}`}
+            title="Toggle debug info"
+          >
+            <Bug className="w-6 h-6 sm:w-8 sm:h-8" />
+          </button>
+        </div>
+      )}
+
+      {!transparentMode && spriteError && showControls && (
         <div
           className="absolute top-10 left-2 right-2 bg-orange-500/90 text-white text-xs p-2 rounded"
           style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
@@ -165,8 +216,8 @@ export default function DesktopPage() {
         </div>
       )}
 
-      {/* Debug panel */}
-      {showDebug && isListening && (
+      {/* Debug panel - hidden in transparent mode */}
+      {!transparentMode && showDebug && isListening && (
         <DebugPanel
           audioData={audioData}
           spriteError={spriteError}
@@ -185,26 +236,30 @@ export default function DesktopPage() {
           isActive={isListening}
           useCustomSprites={useCustomSprites && spritesLoaded}
           hasFrameSprites={hasFrameSprites}
+          moodLock={moodLock}
+          transparentMode={transparentMode}
         />
       </div>
 
-      {/* Start/Stop button */}
-      <div
-        className={`absolute bottom-4 left-1/2 -translate-x-1/2 transition-opacity ${showControls || !isListening ? "opacity-100" : "opacity-0"}`}
-        style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-      >
-        <button
-          onClick={() => (isListening ? stopCapture() : startCapture())}
-          className={`px-5 py-1.5 sm:px-7 sm:py-2 md:px-9 md:py-2.5 rounded-full text-base sm:text-lg font-medium transition-all ${isListening
-            ? "bg-red-500/80 hover:bg-red-500 text-white"
-            : "bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm"
-            }`}
+      {/* Start/Stop button - hidden in transparent mode */}
+      {!transparentMode && (
+        <div
+          className={`absolute bottom-4 left-1/2 -translate-x-1/2 transition-opacity ${showControls || !isListening ? "opacity-100" : "opacity-0"}`}
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
         >
-          {isListening ? "Stop" : "Start Vibing"}
-        </button>
-      </div>
+          <button
+            onClick={() => (isListening ? stopCapture() : startCapture())}
+            className={`px-5 py-1.5 sm:px-7 sm:py-2 md:px-9 md:py-2.5 rounded-full text-base sm:text-lg font-medium transition-all ${isListening
+              ? "bg-red-500/80 hover:bg-red-500 text-white"
+              : "bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm"
+              }`}
+          >
+            {isListening ? "Stop" : "Start Vibing"}
+          </button>
+        </div>
+      )}
 
-      {error && (
+      {!transparentMode && error && (
         <div className="absolute bottom-16 left-2 right-2 bg-red-500/80 text-white text-xs p-2 rounded">{error}</div>
       )}
     </div>
@@ -216,19 +271,18 @@ interface DesktopBuddyProps {
   isActive: boolean
   useCustomSprites: boolean
   hasFrameSprites: boolean
+  moodLock: MoodLock
+  transparentMode: boolean
 }
 
-function DesktopBuddy({ audioData, isActive, useCustomSprites, hasFrameSprites }: DesktopBuddyProps) {
-  const [displayedMood, setDisplayedMood] = useState<Mood>("chill")
+function DesktopBuddy({ audioData, isActive, useCustomSprites, hasFrameSprites, moodLock, transparentMode }: DesktopBuddyProps) {
+  // Compute effective mood: use locked mood if set, otherwise use detected mood
+  const effectiveMood = moodLock !== "auto" ? moodLock : audioData.mood
+
   const [currentFrame, setCurrentFrame] = useState(0)
   const [bounce, setBounce] = useState(0)
   const [rotation, setRotation] = useState(0)
   const [scale, setScale] = useState({ x: 1, y: 1 })
-
-  const moodHistoryRef = useRef<Mood[]>([])
-  const lastMoodChangeRef = useRef(Date.now())
-  const MOOD_CHANGE_DELAY = 2000 // 2 seconds before mood can change (reduced from 8s for better responsiveness)
-  const MOOD_HISTORY_SIZE = 100 // Track last 100 readings
 
   const frameTimerRef = useRef<NodeJS.Timeout | null>(null)
   const animationRef = useRef<number | null>(null)
@@ -239,53 +293,7 @@ function DesktopBuddy({ audioData, isActive, useCustomSprites, hasFrameSprites }
   const rotationRef = useRef(0)
 
   useEffect(() => {
-    if (!isActive) return
-
-    // Add current mood to history
-    moodHistoryRef.current.push(audioData.mood)
-    if (moodHistoryRef.current.length > MOOD_HISTORY_SIZE) {
-      moodHistoryRef.current.shift()
-    }
-
-    const timeSinceLastChange = Date.now() - lastMoodChangeRef.current
-
-    // Only consider changing mood after minimum delay
-    if (timeSinceLastChange < MOOD_CHANGE_DELAY) return
-
-    // Count moods in recent history
-    const moodCounts: Record<Mood, number> = { chill: 0, happy: 0, sad: 0, energetic: 0 }
-    moodHistoryRef.current.forEach((m) => moodCounts[m]++)
-
-    // Find dominant mood (needs 40% majority - reduced from 60% for better responsiveness)
-    const total = moodHistoryRef.current.length
-    const threshold = total * 0.4
-
-    let dominantMood: Mood | null = null
-    for (const [mood, count] of Object.entries(moodCounts)) {
-      if (count >= threshold) {
-        dominantMood = mood as Mood
-        break
-      }
-    }
-
-    // Only change if there's a clear dominant mood different from current
-    if (dominantMood && dominantMood !== displayedMood) {
-      console.log('[MOOD-DBG] Changing mood:', {
-        from: displayedMood,
-        to: dominantMood,
-        counts: moodCounts,
-        timeSinceLastChange,
-        historySize: moodHistoryRef.current.length
-      })
-      setDisplayedMood(dominantMood)
-      lastMoodChangeRef.current = Date.now()
-      moodHistoryRef.current = [] // Reset history after change
-    }
-  }, [audioData.mood, isActive, displayedMood])
-
-  useEffect(() => {
     if (!isActive || !audioData.isActive) {
-      setDisplayedMood("chill")
       setBounce(0)
       setRotation(0)
       setScale({ x: 1, y: 1 })
@@ -293,16 +301,14 @@ function DesktopBuddy({ audioData, isActive, useCustomSprites, hasFrameSprites }
       bounceVelocityRef.current = 0
       bouncePositionRef.current = 0
       rotationRef.current = 0
-      moodHistoryRef.current = []
-      lastMoodChangeRef.current = Date.now()
     }
   }, [isActive, audioData.isActive])
 
   useEffect(() => {
     if (!isActive || !hasFrameSprites) return
 
-    const frames = SPRITE_FRAMES[displayedMood]
-    const baseSpeed = FRAME_SPEEDS[displayedMood]
+    const frames = SPRITE_FRAMES[effectiveMood]
+    const baseSpeed = FRAME_SPEEDS[effectiveMood]
 
     // Sync frame speed to BPM if available
     const bpmSpeed = audioData.bpm > 0 ? 60000 / audioData.bpm / frames.length : baseSpeed
@@ -315,7 +321,7 @@ function DesktopBuddy({ audioData, isActive, useCustomSprites, hasFrameSprites }
     return () => {
       if (frameTimerRef.current) clearInterval(frameTimerRef.current)
     }
-  }, [isActive, displayedMood, audioData.bpm, hasFrameSprites])
+  }, [isActive, effectiveMood, audioData.bpm, hasFrameSprites])
 
   // Beat reaction
   useEffect(() => {
@@ -323,11 +329,11 @@ function DesktopBuddy({ audioData, isActive, useCustomSprites, hasFrameSprites }
       lastBeatRef.current = Date.now()
 
       const intensity =
-        displayedMood === "energetic" ? -40 : displayedMood === "happy" ? -25 : displayedMood === "sad" ? -5 : -15
+        effectiveMood === "energetic" ? -40 : effectiveMood === "happy" ? -25 : effectiveMood === "sad" ? -5 : effectiveMood === "sleep" ? -2 : -15
 
       bounceVelocityRef.current = intensity * (0.8 + audioData.energy * 0.5)
     }
-  }, [audioData.beat, audioData.energy, displayedMood, isActive])
+  }, [audioData.beat, audioData.energy, effectiveMood, isActive])
 
   // Physics animation loop
   useEffect(() => {
@@ -345,12 +351,14 @@ function DesktopBuddy({ audioData, isActive, useCustomSprites, hasFrameSprites }
 
       // Gentle idle sway based on mood
       let idleRotation = 0
-      if (displayedMood === "energetic") {
+      if (effectiveMood === "energetic") {
         idleRotation = Math.sin(timeRef.current / 150) * 12
-      } else if (displayedMood === "happy") {
+      } else if (effectiveMood === "happy") {
         idleRotation = Math.sin(timeRef.current / 300) * 8
-      } else if (displayedMood === "chill") {
+      } else if (effectiveMood === "chill") {
         idleRotation = Math.sin(timeRef.current / 800) * 5
+      } else if (effectiveMood === "sleep") {
+        idleRotation = Math.sin(timeRef.current / 2000) * 2 // Very slow, minimal movement
       } else {
         idleRotation = Math.sin(timeRef.current / 1500) * 2
       }
@@ -374,36 +382,39 @@ function DesktopBuddy({ audioData, isActive, useCustomSprites, hasFrameSprites }
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current)
     }
-  }, [isActive, displayedMood])
+  }, [isActive, effectiveMood])
 
   const glowColors: Record<Mood, string> = {
     chill: "rgba(34, 211, 238, 0.5)",
     happy: "rgba(250, 204, 21, 0.5)",
     sad: "rgba(129, 140, 248, 0.4)",
     energetic: "rgba(251, 146, 60, 0.6)",
+    sleep: "rgba(147, 112, 219, 0.3)", // Soft muted purple
   }
 
   const getCurrentSprite = () => {
     if (hasFrameSprites) {
-      const frames = SPRITE_FRAMES[displayedMood]
+      const frames = SPRITE_FRAMES[effectiveMood]
       return frames[currentFrame] || frames[0]
     }
-    return MOOD_SPRITES[displayedMood]
+    return MOOD_SPRITES[effectiveMood]
   }
 
   if (useCustomSprites) {
     return (
       <div className="relative">
-        {/* Glow effect */}
-        <div
-          className="absolute inset-0 rounded-full blur-3xl"
-          style={{
-            backgroundColor: glowColors[displayedMood],
-            transform: `scale(${1.5 + audioData.energy * 0.8 + (audioData.beat ? 0.3 : 0)})`,
-            opacity: 0.6 + audioData.energy * 0.4,
-            transition: "background-color 0.5s ease-out, transform 0.1s ease-out",
-          }}
-        />
+        {/* Glow effect - hidden in transparent mode */}
+        {!transparentMode && (
+          <div
+            className="absolute inset-0 rounded-full blur-3xl"
+            style={{
+              backgroundColor: glowColors[effectiveMood],
+              transform: `scale(${1.5 + audioData.energy * 0.8 + (audioData.beat ? 0.3 : 0)})`,
+              opacity: 0.6 + audioData.energy * 0.4,
+              transition: "background-color 0.5s ease-out, transform 0.1s ease-out",
+            }}
+          />
+        )}
 
         {/* Animated sprite */}
         <div
@@ -411,23 +422,23 @@ function DesktopBuddy({ audioData, isActive, useCustomSprites, hasFrameSprites }
           style={{
             transformOrigin: "center bottom",
             transform: `
-              translateY(${bounce}px) 
-              rotate(${rotation}deg) 
-              scaleX(${scale.x}) 
+              translateY(${bounce}px)
+              rotate(${rotation}deg)
+              scaleX(${scale.x})
               scaleY(${scale.y})
             `,
           }}
         >
           <img
             src={getCurrentSprite() || "/placeholder.svg"}
-            alt={`${displayedMood} buddy`}
+            alt={`${effectiveMood} buddy`}
             className="w-full h-full object-contain"
             style={{
-              filter: `drop-shadow(0 0 ${15 + audioData.energy * 20}px ${glowColors[displayedMood]})`,
+              filter: transparentMode ? "none" : `drop-shadow(0 0 ${15 + audioData.energy * 20}px ${glowColors[effectiveMood]})`,
             }}
             onError={(e) => {
               // Fallback to single sprite if frame not found
-              e.currentTarget.src = MOOD_SPRITES[displayedMood]
+              e.currentTarget.src = MOOD_SPRITES[effectiveMood]
             }}
           />
         </div>
@@ -443,32 +454,39 @@ function DesktopBuddy({ audioData, isActive, useCustomSprites, hasFrameSprites }
         transform: `translateY(${bounce}px) rotate(${rotation}deg) scaleX(${scale.x}) scaleY(${scale.y})`,
       }}
     >
+      {/* Glow - hidden in transparent mode */}
+      {!transparentMode && (
+        <div
+          className="absolute inset-0 rounded-full blur-2xl transition-all duration-500"
+          style={{
+            backgroundColor: glowColors[effectiveMood],
+            transform: `scale(${1.2 + audioData.energy * 0.3})`,
+          }}
+        />
+      )}
       <div
-        className="absolute inset-0 rounded-full blur-2xl transition-all duration-500"
-        style={{
-          backgroundColor: glowColors[displayedMood],
-          transform: `scale(${1.2 + audioData.energy * 0.3})`,
-        }}
-      />
-      <div
-        className={`relative w-40 h-40 rounded-full transition-all duration-500 ${displayedMood === "chill"
-          ? "bg-linear-to-br from-cyan-400 to-blue-500"
-          : displayedMood === "happy"
-            ? "bg-linear-to-br from-yellow-400 to-amber-500"
-            : displayedMood === "sad"
-              ? "bg-linear-to-t from-indigo-400 to-purple-500"
-              : "bg-linear-to-br from-orange-400 to-red-500"
+        className={`relative w-40 h-40 rounded-full transition-all duration-500 ${transparentMode
+          ? "bg-transparent"
+          : effectiveMood === "chill"
+            ? "bg-linear-to-br from-cyan-400 to-blue-500"
+            : effectiveMood === "happy"
+              ? "bg-linear-to-br from-yellow-400 to-amber-500"
+              : effectiveMood === "sad"
+                ? "bg-linear-to-t from-indigo-400 to-purple-500"
+                : effectiveMood === "sleep"
+                  ? "bg-linear-to-br from-purple-300 to-indigo-400"
+                  : "bg-linear-to-br from-orange-400 to-red-500"
           }`}
       >
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <div className="flex gap-6 -mt-2">
-            <BlobEye mood={displayedMood} beat={audioData.beat} />
-            <BlobEye mood={displayedMood} beat={audioData.beat} />
+            <BlobEye mood={effectiveMood} beat={audioData.beat} />
+            <BlobEye mood={effectiveMood} beat={audioData.beat} />
           </div>
           <div className="mt-3">
-            <BlobMouth mood={displayedMood} />
+            <BlobMouth mood={effectiveMood} />
           </div>
-          {(displayedMood === "happy" || displayedMood === "energetic") && (
+          {(effectiveMood === "happy" || effectiveMood === "energetic") && (
             <>
               <div className="absolute left-5 top-1/2 w-5 h-2.5 rounded-full bg-pink-400/40" />
               <div className="absolute right-5 top-1/2 w-5 h-2.5 rounded-full bg-pink-400/40" />

@@ -140,3 +140,10 @@
 .animate-float {
   animation: float 3s ease-in-out infinite;
 }
+
+/* Transparent background for Electron desktop window */
+html.electron-transparent,
+html.electron-transparent body {
+  background: transparent !important;
+  background-color: transparent !important;
+}
