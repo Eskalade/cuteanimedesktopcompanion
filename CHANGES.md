@@ -1,5 +1,7 @@
 # Changelog
 
+test
+
 ## 2026-01-17 - BPM Detection Critical Bug Fixes
 
 ### Bug Fixes
