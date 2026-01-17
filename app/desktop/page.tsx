@@ -100,45 +100,44 @@ export default function DesktopPage() {
     >
       {/* Drag handle */}
       <div
-        className="absolute top-0 left-0 right-0 h-8 flex items-center justify-center cursor-move"
+        className="absolute top-2 left-0 right-0 h-6 sm:h-8 flex items-center justify-center cursor-move"
         style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
       >
         <GripVertical
-          className={`w-4 h-4 text-white/50 transition-opacity ${showControls ? "opacity-100" : "opacity-0"}`}
+          className={`w-6 h-6 sm:w-8 sm:h-8 text-white/50`}
         />
       </div>
 
       {/* Mini controls */}
       <div
-        className={`absolute top-2 right-2 flex gap-1 transition-opacity ${showControls ? "opacity-100" : "opacity-0"}`}
+        className={`absolute top-2 right-2 flex gap-1 sm:gap-2 transition-opacity ${showControls ? "opacity-100" : "opacity-0"}`}
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
         <button
           onClick={() => setInputMode(inputMode === "microphone" ? "system" : "microphone")}
-          className="p-1.5 rounded-full bg-black/50 hover:bg-black/70 text-white/70 hover:text-white transition-all"
+          className="p-2 sm:p-2.5 md:p-3 rounded-full bg-black/50 hover:bg-black/70 text-white/70 hover:text-white transition-all"
           title={inputMode === "microphone" ? "Switch to System Audio" : "Switch to Microphone"}
         >
-          {inputMode === "microphone" ? <Mic className="w-3 h-3" /> : <Monitor className="w-3 h-3" />}
+          {inputMode === "microphone" ? <Mic className="w-6 h-6 sm:w-8 sm:h-8" /> : <Monitor className="w-6 h-6 sm:w-8 sm:h-8" />}
         </button>
         <button
           onClick={() => spritesLoaded && setUseCustomSprites(!useCustomSprites)}
-          className={`p-1.5 rounded-full transition-all ${
-            spritesLoaded
-              ? useCustomSprites
-                ? "bg-green-500/70 text-white"
-                : "bg-black/50 hover:bg-black/70 text-white/70 hover:text-white"
-              : "bg-red-500/50 text-white/50 cursor-not-allowed"
-          }`}
+          className={`p-2 sm:p-2.5 md:p-3 rounded-full transition-all ${spritesLoaded
+            ? useCustomSprites
+              ? "bg-green-500/70 text-white"
+              : "bg-black/50 hover:bg-black/70 text-white/70 hover:text-white"
+            : "bg-red-500/50 text-white/50 cursor-not-allowed"
+            }`}
           title={spritesLoaded ? "Toggle custom sprites" : "Add sprites to /public/sprites/"}
         >
-          <ImageIcon className="w-3 h-3" />
+          <ImageIcon className="w-6 h-6 sm:w-8 sm:h-8" />
         </button>
         <button
           onClick={() => setShowDebug(!showDebug)}
-          className={`p-1.5 rounded-full transition-all ${showDebug ? "bg-yellow-500/70 text-black" : "bg-black/50 hover:bg-black/70 text-white/70 hover:text-white"}`}
+          className={`p-2 sm:p-2.5 md:p-3 rounded-full transition-all ${showDebug ? "bg-yellow-500/70 text-black" : "bg-black/50 hover:bg-black/70 text-white/70 hover:text-white"}`}
           title="Toggle debug info"
         >
-          <Bug className="w-3 h-3" />
+          <Bug className="w-6 h-6 sm:w-8 sm:h-8" />
         </button>
       </div>
 
@@ -181,11 +180,10 @@ export default function DesktopPage() {
       >
         <button
           onClick={() => (isListening ? stopCapture() : startCapture())}
-          className={`px-4 py-2 rounded-full text-xs font-medium transition-all ${
-            isListening
-              ? "bg-red-500/80 hover:bg-red-500 text-white"
-              : "bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm"
-          }`}
+          className={`px-5 py-1.5 sm:px-7 sm:py-2 md:px-9 md:py-2.5 rounded-full text-base sm:text-lg font-medium transition-all ${isListening
+            ? "bg-red-500/80 hover:bg-red-500 text-white"
+            : "bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm"
+            }`}
         >
           {isListening ? "Stop" : "Start Vibing"}
         </button>
@@ -438,15 +436,14 @@ function DesktopBuddy({ audioData, isActive, useCustomSprites, hasFrameSprites }
         }}
       />
       <div
-        className={`relative w-40 h-40 rounded-full transition-all duration-500 ${
-          displayedMood === "chill"
-            ? "bg-gradient-to-br from-cyan-400 to-blue-500"
-            : displayedMood === "happy"
-              ? "bg-gradient-to-br from-yellow-400 to-amber-500"
-              : displayedMood === "sad"
-                ? "bg-gradient-to-t from-indigo-400 to-purple-500"
-                : "bg-gradient-to-br from-orange-400 to-red-500"
-        }`}
+        className={`relative w-40 h-40 rounded-full transition-all duration-500 ${displayedMood === "chill"
+          ? "bg-linear-to-br from-cyan-400 to-blue-500"
+          : displayedMood === "happy"
+            ? "bg-linear-to-br from-yellow-400 to-amber-500"
+            : displayedMood === "sad"
+              ? "bg-linear-to-t from-indigo-400 to-purple-500"
+              : "bg-linear-to-br from-orange-400 to-red-500"
+          }`}
       >
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <div className="flex gap-6 -mt-2">
@@ -554,8 +551,8 @@ function DebugPanel({
   // Get sorted genre scores for display
   const sortedGenres = classificationInfo?.genreScores
     ? Object.entries(classificationInfo.genreScores)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
     : []
 
   // Get mood scores for display
@@ -626,15 +623,14 @@ function DebugPanel({
       <div className="flex justify-between">
         <span>Mood:</span>
         <span
-          className={`${
-            audioData.mood === "chill"
-              ? "text-blue-400"
-              : audioData.mood === "happy"
-                ? "text-yellow-400"
-                : audioData.mood === "sad"
-                  ? "text-purple-400"
-                  : "text-orange-400"
-          }`}
+          className={`${audioData.mood === "chill"
+            ? "text-blue-400"
+            : audioData.mood === "happy"
+              ? "text-yellow-400"
+              : audioData.mood === "sad"
+                ? "text-purple-400"
+                : "text-orange-400"
+            }`}
         >
           {audioData.mood}
           <span className="text-white/40 ml-1">({(audioData.moodConfidence * 100).toFixed(0)}%)</span>
