@@ -1,3 +1,4 @@
+![Moeko-chan](./screenshots/moeko-chan.png)
 # Moeko-chan 🎵
 
 Moeko-chan is a cute desktop companion that lives on your screen and vibes to your music in real-time. Using advanced audio analysis, Moeko-chan detects the BPM, mood, and energy of whatever you're listening to, changing her expressions and dance moves to match your flow.
