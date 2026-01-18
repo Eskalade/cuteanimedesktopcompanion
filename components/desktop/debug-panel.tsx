@@ -77,12 +77,12 @@ export function DebugPanel({
             <span>Mood:</span>
             <span
                className={`${audioData.mood === "chill"
-                     ? "text-blue-400"
-                     : audioData.mood === "happy"
-                        ? "text-yellow-400"
-                        : audioData.mood === "sad"
-                           ? "text-purple-400"
-                           : "text-orange-400"
+                  ? "text-blue-400"
+                  : audioData.mood === "happy"
+                     ? "text-yellow-400"
+                     : audioData.mood === "sad"
+                        ? "text-purple-400"
+                        : "text-orange-400"
                   }`}
             >
                {audioData.mood}
@@ -144,9 +144,15 @@ export function DebugPanel({
             </div>
             <div className="flex items-center gap-1">
                <span>Beat:</span>
-               <span className={audioData.beat ? "text-green-400" : "text-white/40"}>
-                  {audioData.beat ? "!" : "-"}
-               </span>
+               <div className="relative">
+                  <div className={`w-3 h-3 rounded-full transition-all duration-100 ${audioData.beat
+                        ? "bg-green-400 shadow-[0_0_8px_2px_rgba(74,222,128,0.6)]"
+                        : "bg-white/20"
+                     }`} />
+                  {audioData.beat && (
+                     <div className="absolute inset-0 w-3 h-3 rounded-full bg-green-400 animate-ping" />
+                  )}
+               </div>
             </div>
             <div className="flex items-center gap-1">
                <span>Sprites:</span>

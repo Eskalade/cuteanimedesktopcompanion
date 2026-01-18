@@ -20,10 +20,9 @@ import {
 } from "@/lib/audio-debug"
 
 // Debug mode: enable via URL param ?debug=1 or localStorage
-const isVerboseDebug =
-	typeof window !== "undefined" &&
-	(window.location.search.includes("debug=1") ||
-		localStorage.getItem("VIBE_DEBUG") === "true")
+const isVerboseDebug = false
+
+const showSpeechDetectionDebug = true
 
 // Throttle counter for verbose logging (every 30 frames ~0.5s)
 let debugFrameCount = 0
@@ -91,6 +90,7 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 	const realtimeBpmRef = useRef<number>(0) // Store realtime-bpm-analyzer result separately
 	const beatTimesRef = useRef<number[]>([])
 	const lastBeatTimeRef = useRef<number>(0)
+	const lastValidBeatTimeRef = useRef<number>(0)
 	const energyHistoryRef = useRef<number[]>([])
 
 	const silenceCountRef = useRef<number>(0)
@@ -135,6 +135,7 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 		realtimeBpmRef.current = 0
 		beatTimesRef.current = []
 		lastBeatTimeRef.current = 0
+		lastValidBeatTimeRef.current = 0
 		energyHistoryRef.current = []
 		silenceCountRef.current = 0
 		resetPredictionHistory()
@@ -189,24 +190,65 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 			totalSum += dataArray[i]
 		}
 
+		// Speech detection: Speech has strong mid-range (300-3000Hz) and lower bass/treble
+		const midLevel = midSum / ((midEndBin - bassEndBin) * 255)
+		const bassLevel = bassSum / (bassEndBin * 255)
+		const trebleLevel = trebleSum / ((bufferLength - midEndBin) * 255)
+
+		// Calculate spectral flatness to detect noise vs tonal sounds
+		let logSum = 0
+		let arithmeticSum = 0
+		for (let i = 0; i < bufferLength; i++) {
+			const value = dataArray[i] + 1
+			logSum += Math.log(value)
+			arithmeticSum += value
+		}
+		const geometricMean = Math.exp(logSum / bufferLength)
+		const arithmeticMean = arithmeticSum / bufferLength
+		const spectralFlatness =
+			arithmeticMean > 0 ? geometricMean / arithmeticMean : 0
+
+		// Speech typically has:
+		// - Moderate mid-range energy (0.08-0.20)
+		// - Very low treble compared to mid (speech doesn't have high frequencies)
+		// - Low-ish spectral flatness (tonal, not white noise)
+		// Music has more treble, more balanced spectrum, and often sharper transients
 		// Unified gain multiplier for consistent levels
 		// RAW values for beat detection (can exceed 1.0 to detect transients)
 		const rawBassLevel = (bassSum / (bassEndBin * 255)) * AUDIO_MULTIPLIER
+		const rawEnergy =
+			((bassSum + midSum) / (midEndBin * 255)) * AUDIO_MULTIPLIER
 		const energy = Math.min(
 			1,
 			(totalSum / (bufferLength * 255)) * AUDIO_MULTIPLIER
 		)
 
-		// Verbose debug logging for levels
-		if (isVerboseDebug && debugFrameCount % DEBUG_LOG_INTERVAL === 0) {
-			console.log("[AUDIO-DBG] Levels:", {
-				multiplier: AUDIO_MULTIPLIER,
-				energy: energy.toFixed(4),
-				rawBass: rawBassLevel.toFixed(4),
-				maxFreq: maxFrequency,
-				totalSum,
-				bufferLength
-			})
+		const isSpeech =
+			midLevel > 0.08 &&
+			trebleLevel < 0.025 &&
+			midLevel > trebleLevel * 4 &&
+			spectralFlatness < 0.35
+
+		// Debug speech detection - log all activity when audio is present
+		if (showSpeechDetectionDebug && energy > 0.05) {
+			console.log(
+				"[SPEECH-DBG]",
+				isSpeech ? "SPEECH DETECTED:" : "Audio (no speech):",
+				{
+					midLevel: midLevel.toFixed(4),
+					bassLevel: bassLevel.toFixed(4),
+					trebleLevel: trebleLevel.toFixed(4),
+					spectralFlatness: spectralFlatness.toFixed(4),
+					midVsTreble:
+						trebleLevel > 0 ? (midLevel / trebleLevel).toFixed(2) + "x" : "N/A",
+					checks: {
+						midHigh: midLevel > 0.08,
+						trebleLow: trebleLevel < 0.015,
+						midOverTreble: midLevel > trebleLevel * 10,
+						flatnessOk: spectralFlatness < 0.35
+					}
+				}
+			)
 		}
 
 		// Unified silence threshold
@@ -232,8 +274,8 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 		updateDebugState("audioMetrics", audioMetrics)
 
 		const now = performance.now()
-		// Use RAW bass level for beat detection (can exceed 1.0 to detect transients)
-		energyHistoryRef.current.push(rawBassLevel)
+		// Use RAW total energy for beat detection (can exceed 1.0 to detect transients)
+		energyHistoryRef.current.push(rawEnergy)
 		if (energyHistoryRef.current.length > 30) {
 			energyHistoryRef.current.shift()
 		}
@@ -241,7 +283,7 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 		const avgEnergy =
 			energyHistoryRef.current.reduce((a, b) => a + b, 0) /
 			energyHistoryRef.current.length
-		const threshold = avgEnergy * 1.2
+		const threshold = avgEnergy * 1.15
 
 		let isBeat = false
 		let lastInterval = 0
@@ -260,15 +302,16 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 			})
 		}
 
-		// Use RAW bass level for beat detection + require minimum energy to avoid false positives
-		if (
-			rawBassLevel > threshold &&
-			rawBassLevel > 0.05 &&
-			timeSinceLastBeat > 150
-		) {
+		// Use RAW total energy for beat detection + require minimum energy to avoid false positives
+		// Filter out speech patterns to prevent detecting talking as BPM
+		const beatWouldTrigger =
+			rawEnergy > threshold && rawEnergy > 0.03 && timeSinceLastBeat > 200
+
+		if (beatWouldTrigger && !isSpeech) {
 			beatTimesRef.current.push(now)
 			lastInterval = timeSinceLastBeat
 			lastBeatTimeRef.current = now
+			lastValidBeatTimeRef.current = now
 			isBeat = true
 
 			if (isVerboseDebug) {
@@ -322,6 +365,14 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 			}
 
 			logBeat(rawBassLevel, threshold, currentBpmRef.current)
+		} else if (beatWouldTrigger && isSpeech) {
+			if (showSpeechDetectionDebug) {
+				console.log("[SPEECH-DBG] Beat rejected due to speech detection", {
+					rawBass: rawBassLevel.toFixed(4),
+					threshold: threshold.toFixed(4),
+					timeSinceLast: timeSinceLastBeat.toFixed(0) + "ms"
+				})
+			}
 		}
 
 		// Log BPM detection info
@@ -345,6 +396,24 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 			}, 100)
 		}
 
+		// Reset BPM if no beats detected for 5 seconds (even if audio is still playing)
+		const timeSinceLastValidBeat = now - lastValidBeatTimeRef.current
+		const hasRecentBeat =
+			lastValidBeatTimeRef.current > 0 && timeSinceLastValidBeat < 5000
+
+		if (
+			!hasRecentBeat &&
+			(currentBpmRef.current > 0 || lastValidBpmRef.current > 0)
+		) {
+			if (isVerboseDebug) {
+				console.log("[AUDIO-DBG] No beats for 5s, resetting BPM")
+			}
+			currentBpmRef.current = 0
+			lastValidBpmRef.current = 0
+			realtimeBpmRef.current = 0
+			beatTimesRef.current = []
+		}
+
 		// Calculate BPM status for UI feedback
 		const timeSinceStart = Date.now() - startTimeRef.current
 		const beatCount = beatTimesRef.current.length
@@ -352,7 +421,7 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 
 		if (timeSinceStart < 2000) {
 			bpmStatus = "warming-up"
-		} else if (currentBpmRef.current > 0 || realtimeBpmRef.current > 0) {
+		} else if (currentBpmRef.current >= 40 || realtimeBpmRef.current >= 40) {
 			bpmStatus = "detected"
 		} else if (beatCount >= 1) {
 			bpmStatus = "stabilizing"
@@ -363,7 +432,9 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 		if (isInSilence) {
 			// Decay BPM during silence instead of preserving indefinitely
 			if (lastValidBpmRef.current > BPM_DECAY_THRESHOLD) {
-				lastValidBpmRef.current = Math.floor(lastValidBpmRef.current * BPM_DECAY_RATE)
+				lastValidBpmRef.current = Math.floor(
+					lastValidBpmRef.current * BPM_DECAY_RATE
+				)
 			} else {
 				lastValidBpmRef.current = 0
 			}
@@ -534,38 +605,12 @@ export function useAudioCapture(mode: AudioMode = "microphone") {
 					console.log(
 						"[AUDIO-DBG] Realtime BPM analyzer initialized with 3s stabilization"
 					)
-					console.log(
-						"[AUDIO-DBG] Processor type:",
-						typeof realtimeBpmProcessor,
-						"keys:",
-						Object.keys(realtimeBpmProcessor)
-					)
 				}
 
-				// The realtime-bpm-analyzer returns an object with a 'port' property for messaging
-				// and may have different connection semantics. Try multiple approaches.
-
-				// Check if it's a proper AudioWorkletNode with connect method
-				if (
-					realtimeBpmProcessor &&
-					typeof (realtimeBpmProcessor as AudioWorkletNode).connect ===
-						"function"
-				) {
-					source.connect(realtimeBpmProcessor as unknown as AudioNode)
-					bpmProcessorRef.current =
-						realtimeBpmProcessor as unknown as AudioWorkletNode
-
-					if (isVerboseDebug) {
-						console.log(
-							"[AUDIO-DBG] Connected via standard AudioNode.connect()"
-						)
-					}
-				} else {
-					// Some versions of the library expose a different API
-					console.warn(
-						"[AUDIO-DBG] realtime-bpm-analyzer returned non-standard object, skipping connection"
-					)
-				}
+				// The realtime-bpm-analyzer library automatically taps into the AudioContext
+				// No need to manually connect it to the source
+				bpmProcessorRef.current =
+					realtimeBpmProcessor as unknown as AudioWorkletNode
 
 				// Set up message handler for BPM results
 				const processorNode =
