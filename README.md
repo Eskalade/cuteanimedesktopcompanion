@@ -1,108 +1,46 @@
-# Vibe Buddy
+# Moeko-chan 🎵
 
-A cute desktop AI companion that reacts to your music in real-time. Vibe Buddy analyzes audio from your microphone or system audio to detect BPM, genre, mood, and energy levels, then displays an animated character that dances and emotes along with your tunes.
+Moeko-chan is a cute desktop companion that lives on your screen and vibes to your music in real-time. Using advanced audio analysis, Moeko-chan detects the BPM, mood, and energy of whatever you're listening to, changing her expressions and dance moves to match your flow.
 
-## Audio Input Modes
+## ✨ Features
 
-Vibe Buddy supports two audio input modes, selectable via the toggle button in the top-right corner:
+- **🎨 Immersive Desktop Spirit** – Moeko-chan floats on your desktop as a transparent, always-on-top widget. She sits above your code, your games, and your browser!
+- **🧠 Intelligent Mood Sync** – Using real-time ML heuristics, Moeko-chan transitions between 5 distinct moods: **Chill, Energetic, Happy, Sad,** and **Sleep**.
+- **🥁 Custom BPM Engine** – Built with a high-accuracy bass-isolation filter. By ignoring vocals and melodies, Moeko-chan "hears" the kick drum, ensuring her bounces are perfectly in sync with the beat.
+- **💤 Signature Sleep Mode** – If the room goes quiet for more than 5 seconds, Moeko-chan will close her eyes and drift into a slow breathing animation until the music starts again.
+- **👁️ Immersive Mode** – Press `Ctrl + L` to hide all UI buttons and her background glow. Moeko-chan becomes a clean, floating sticker on your screen for maximum cuteness.
+- **✨ Physics-Based Animation** – Moeko-chan uses spring physics for her bops and squashes, making her feel soft, squishy, and alive.
 
-### Microphone Mode (Default)
-- **Icon**: 🎤 Mic
-- Works out of the box with no special permissions
-- Captures ambient sound through your microphone
-- Great for reacting to music playing through speakers
-- Works on all platforms
+## ⌨️ Controls & Hotkeys
 
-### System Audio Mode
-- **Icon**: 🖥️ Monitor
-- Captures audio directly from applications (Spotify, YouTube, etc.)
-- Requires Screen Recording permission on macOS
-- No ambient noise interference
-- Best for headphone users or quiet environments
+| Control | Action |
+|---------|--------|
+| `Ctrl + L` | **Toggle Immersive Mode** (Hides UI & Background Glow) |
+| `Ctrl + Shift + D` | **Toggle Moeko's Brain** (Debug Panel) |
+| `Ctrl + Shift + E` | **Expand Brain Metrics** (Waveform & Spectral Data) |
+| **Eye Icon** | Toggle Immersive Mode manually |
+| **Start/Stop Button** | Wake Moeko-chan up and start the audio analysis |
 
-## Features
+---
 
-- **Dual Audio Modes** - Switch between microphone and system audio capture
-- **BPM Detection** - Detects beats per minute (50-200 BPM range) using beat detection algorithms
-- **Genre Classification** - Identifies music genre (electronic, EDM, dubstep, trap, lo-fi, hip-hop, rock, pop, jazz, classical, ambient, metal, r&b, reggae, indie)
-- **Mood Detection** - Classifies audio mood as chill, energetic, happy, sad, or sleep
-- **Frequency Spectrum Analysis** - Monitors bass (0-250Hz), mid (250-2000Hz), and treble levels
-- **Animated Character** - Bouncy sprite with physics-based animations that react to the beat
-- **Desktop Widget** - Floating, always-on-top transparent window (300x350px)
-- **Tray Menu** - System tray icon with quick controls
-- **Global Shortcut** - Toggle visibility with `Ctrl+Shift+V` (or `Cmd+Shift+V` on Mac)
-- **Transparent Mode** - Press `Ctrl+Shift+T` for a fully transparent background showing only the character
-- **Mood Lock** - Lock the character to a specific mood animation via the dropdown menu
-- **Custom Sprites** - Use your own character images
-- **Web App Mode** - Also works in the browser with a character generator
+## 🚀 Installation & Setup
 
-## Installation
-
+### 1. Clone & Install
 ```bash
-# Clone the repository
-git clone <repository-url>
+git clone https://github.com/Eskalade/moeko-chan
 cd cuteanimedesktopcompanion
-
-# Install dependencies
 npm install
 ```
 
-## System Audio Setup
-
-Vibe Buddy captures system audio (from Spotify, YouTube, etc.) using `electron-audio-loopback`. Setup varies by platform:
-
-### macOS
-
-On first launch, macOS will prompt for **Screen & System Audio Recording** permission:
-
-1. Click "Open System Preferences" when prompted
-2. Go to **Privacy & Security > Screen & System Audio Recording**
-3. Enable the toggle for Vibe Buddy
-4. **Restart the app** (required for permissions to take effect)
-
-> **Note**: macOS 14.2+ uses Core Audio Taps API for zero-latency capture. Older versions use Chromium flags as fallback.
-
-### Windows
-
-System audio capture should work out-of-the-box on Windows 10/11 without any additional setup.
-
-### Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| No audio detected | Check that music is playing and volume is not muted |
-| Permission denied (macOS) | Grant Screen Recording permission and restart the app |
-| BPM not detecting | Play music with a strong beat; BPM detection needs 2-3 seconds to stabilize |
-| Wrong mood detected | The mood may take 1-2 seconds to stabilize; this is intentional to prevent flickering |
-
-### Debug Mode
-
-Enable debug mode to see real-time analysis metrics:
-
-- **URL**: Add `?debug=1` to the URL
-- **Keyboard**: Press `Ctrl+Shift+D` to toggle debug panel
-- **Console**: Run `localStorage.setItem('VIBE_DEBUG', 'true')` and refresh
-
-## Usage
-
-### Desktop Mode (Electron)
-
-Run the app as a floating desktop companion:
-
+### 2. Run Moeko-chan
+### Desktop Companion Mode (Recommended)
 ```bash
 npm run electron-dev
 ```
-
-This starts both the Next.js dev server and the Electron app. The companion will appear in the bottom-right corner of your screen.
-
-### Web Mode
-
-Run as a web application:
-
+### Web Mode (Browser Only)
 ```bash
 npm run dev
 ```
-
 Then open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Controls
@@ -127,12 +65,7 @@ Vibe Buddy analyzes the following metrics in real-time:
 |--------|-------------|-------|
 | **BPM** | Beats per minute | 50-200 |
 | **Energy** | Overall loudness level | 0-100% |
-| **Bass Level** | Low frequency energy (0-250Hz) | 0-100% |
-| **Mid Level** | Mid frequency energy (250-2000Hz) | 0-100% |
-| **Treble Level** | High frequency energy (2000Hz+) | 0-100% |
-| **Genre** | Detected music genre | See list above |
-| **Mood** | Emotional classification | chill, energetic, happy, sad, sleep |
-| **Danceability** | How danceable the track is | 0-100% |
+| **Mood** | Emotional classification | chill, energetic, happy, sleep |
 | **Valence** | Musical positivity | 0-100% |
 
 ## Project Structure
@@ -168,7 +101,10 @@ Vibe Buddy analyzes the following metrics in real-time:
 - **Framework**: [Next.js](https://nextjs.org/) 16
 - **Desktop**: [Electron](https://www.electronjs.org/) 40
 - **UI**: [Tailwind CSS](https://tailwindcss.com/) 4, [Radix UI](https://www.radix-ui.com/)
-- **Audio**: Web Audio API, [realtime-bpm-analyzer](https://www.npmjs.com/package/realtime-bpm-analyzer), [electron-audio-loopback](https://www.npmjs.com/package/electron-audio-loopback)
+- **Audio Processing**: Custom Web Audio API graph featuring:
+    Biquad Low-Pass Filter: Set at 130Hz to isolate kick drums from vocal noise.
+    Adaptive Peak Detection: Dynamically adjusts thresholding based on the song's volume.
+    Median-Interval Filtering: Uses the median of the last 12 beats to calculate stable BPM.
 - **Language**: TypeScript
 
 ## Customization
@@ -181,13 +117,11 @@ Replace the sprite images in `public/sprites/` with your own:
 - `chill.png` - Displayed when mood is "chill"
 - `energetic.png` - Displayed when mood is "energetic"
 - `happy.png` - Displayed when mood is "happy"
-- `sad.png` - Displayed when mood is "sad"
 - `sleep.png` - Displayed when mood is "sleep"
 
 **Animated sprites** (4 frames per mood):
 - `chill-1.png` through `chill-4.png`
 - `happy-1.png` through `happy-4.png`
-- `sad-1.png` through `sad-4.png`
 - `energetic-1.png` through `energetic-4.png`
 - `sleep-1.png` through `sleep-4.png`
 
@@ -197,12 +131,5 @@ Recommended size: 200x200px with transparent background.
 
 Replace `electron/icon.png` with your own tray icon.
 
-## Scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Start Next.js development server |
-| `npm run build` | Build for production |
-| `npm run electron-dev` | Run Electron with Next.js dev server |
-| `npm run electron` | Run Electron (requires built app) |
-| `npm run lint` | Run ESLint |
+## 🌸 "Because every desktop deserves a little more moe."
+Moeko-chan was built with ❤️ for hacknroll'26.
