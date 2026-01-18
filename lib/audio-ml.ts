@@ -101,10 +101,10 @@ export function analyzeAudioFeatures(
 	// - "chill": low energy + high valence (relaxed, pleasant)
 	// - "sad": low energy + low valence (slow, dark)
 	const moodScores = {
-		happy: energy * 0.4 + valence * 0.6, // Favor valence more to catch bright songs
-		energetic: energy * 0.7 + (1 - valence) * 0.3,
-		chill: (1 - energy) * 0.3 + valence * 0.4, // Lower weight on low-energy to reduce false chill detection
-		sad: (1 - energy) * 0.5 + (1 - valence) * 0.5
+		happy: energy * 0.2 + valence * 0.8, // Require very high valence, less energy weight
+		energetic: energy * 1.8, // Boost above 1.0 to beat happy when energy is high
+		chill: (1 - energy) * 0.3 + valence * 0.4,
+		sad: 0
 	}
 	lastMoodScores = moodScores
 
